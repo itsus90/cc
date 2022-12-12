@@ -1,0 +1,145 @@
+LAB 4
+RECOMMENDER SYSTEM
+https://www.kaggle.com/datasets/grouplens/movielens-20m-dataset?select=movie.csv
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.sparse import csr_matrix
+from sklearn.neighbors import NearestNeighbors
+
+from google.colab import files
+uploaded = files.upload()
+
+Reading Data
+movies = pd.read_csv("movie.csv")
+tags = pd.read_csv("tag.csv")
+ratings = pd.read_csv("rating.csv")
+links = pd.read_csv("link.csv")
+
+movies = pd.read_csv("movie.csv", index_col="movieId")
+print(movies.shape)
+movies.head()
+
+Splitting genres
+movies["genres"] = movies["genres"].apply(lambda x : x.split("|"))
+movies["genres"] = movies["genres"].apply(lambda x : ' '.join(word for word in x))
+movies.head()
+
+Histogram for genres
+all_genres = [genre for all_genre in movies.genres.to_numpy() for genre in all_genre.split(" ")]
+plt.figure(figsize=(20, 6))
+_ = sns.histplot(data=all_genres)
+_ = plt.xticks(rotation=45)
+
+Pie chart for rating
+all_rates, counts = np.unique(ratings.rating.to_numpy(), return_counts = True)
+plt.figure(figsize=(10, 10))
+_=plt.pie(counts, labels=all_rates, autopct='%1.1f%%', startangle=90)
+CONTENT BASED:
+Recommend movies based on similar genres
+movies.info()
+
+similarity_feature = movies["genres"].to_numpy()
+similarity_feature = np.array([genre.lower() for genre in similarity_feature])
+similarity_feature[0]
+
+from sklearn.feature_extraction.text import CountVectorizer
+count_vecotr = CountVectorizer()
+count_vecotr.fit(similarity_feature)
+similarity_feature = count_vecotr.transform(similarity_feature)
+
+Using Cosine similarity
+
+from sklearn.metrics.pairwise import cosine_similarity
+movies_similarity = cosine_similarity(similarity_feature)
+movies_similarity = pd.DataFrame(movies_similarity)
+print(movies_similarity.shape)
+movies_similarity.head()
+
+Get top10 most similar movies
+
+def get_similar_movies_content(movie_name):
+  movie_id = movies[movies.title == f"{movie_name}"].index[0]
+  all_moveis = movies_similarity[movie_id - 1]
+
+  k = 10
+  idx = np.argpartition(all_moveis, -k)
+  most_similar_movies_id = idx[-10:].values
+  most_similar_movies_id = np.delete(most_similar_movies_id, np.where(most_similar_movies_id == movie_id - 1)[0])
+
+  for movie_id in most_similar_movies_id :
+    print(movies.iloc[movie_id].title)
+
+
+get_similar_movies_content("Toy Story (1995)")
+
+COLLABORATIVE FILTERING RECOMMENDER SYSTEMS
+print(ratings.shape)
+ratings.head()
+
+No of votes for each user
+user_vote = pd.DataFrame(ratings.groupby("userId")["rating"].agg("count"))
+top_users_index = user_vote.rating.sort_values(ascending=False)[:20].index
+top_users_value = user_vote.rating.sort_values(ascending=False)[:20].values
+plt.figure(figsize=(22, 8))
+_ = sns.barplot(x=top_users_index, y=top_users_value)
+
+Describing votes
+user_vote.describe()
+
+No of votes for each movie
+def get_movie_name(movie_id):
+  return movies.iloc[movie_id].title
+
+movies_votes = pd.DataFrame(ratings.groupby("movieId")["rating"].agg("count"))
+top_movies_index = movies_votes.rating.sort_values(ascending=False)[:20].index
+top_movies_value = movies_votes.rating.sort_values(ascending=False)[:20].values
+movie_names = [get_movie_name(id) for id in top_movies_index]
+plt.figure(figsize=(22, 8))
+_ = sns.barplot(x=top_movies_index, y=top_movies_value)
+print(movie_names)
+
+Describing movie votes
+movies_votes.describe()
+
+Users and movie in one pivot table
+data = pd.pivot(index = 'movieId',columns = 'userId', data = ratings, values ='rating')
+print(data.shape)
+data.head()
+
+Data cleaning
+Getting rid of movies with less than 10 votes
+Getting rid of users less than 170 votes
+
+data = data.dropna(thresh=10)
+print(data.shape)
+data.head()
+data = data.dropna(axis = 1, thresh=170)
+print(data.shape)
+data.head()
+
+Filling NaN Values
+
+data = data.fillna(0)
+data.head()
+
+Recommended movies
+from sklearn.neighbors import NearestNeighbors
+knn = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=21)
+knn.fit(data)
+
+def get_similar_movies_collaborative(movie_name):
+    movie_id = movies[movies.title == f"{movie_name}"].index[0]
+    print("movie id is : ", movie_id)
+    movie_vote_data = data.loc[movie_id].to_numpy()
+    movie_vote_data = movie_vote_data.reshape(1, -1)
+    distances , indices = knn.kneighbors(movie_vote_data
+                                     ,n_neighbors=11)
+    names = [get_movie_name(id) for id in indices]
+    names = names[0].values.reshape(1, 11)
+    for val in list(zip(distances[0], names[0])):
+      print(val)
+
+get_similar_movies_collaborative("Father of the Bride Part II (1995)")
+
