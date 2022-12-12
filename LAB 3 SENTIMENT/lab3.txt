@@ -1,0 +1,161 @@
+LAB 3 SENTIMENTAL ANALYSIS
+https://raw.githubusercontent.com/dD2405/Twitter_Sentiment_Analysis/master/train.csv
+
+import re
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import string
+import nltk
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+%matplotlib inline
+
+Reading training data
+train = pd.read_csv('https://raw.githubusercontent.com/dD2405/Twitter_Sentiment_Analysis/master/train.csv')
+train_original=train.copy()
+
+Read Testing Data
+
+test = pd.read_csv('https://raw.githubusercontent.com/dD2405/Twitter_Sentiment_Analysis/master/test.csv')
+test_original=test.copy()
+
+Data Preprocessing
+
+Combine train and test data
+
+combine = train.append(test,ignore_index=True,sort=True)
+
+ Data Exploration
+
+combine.describe()
+
+combine.head()
+
+combine.tail()
+
+Removing Twitter Handles
+
+def remove_pattern(text,pattern):
+    r = re.findall(pattern,text)
+    for i in r:
+        text = re.sub(i,"",text)
+    return text
+
+combine['Tidy_Tweets'] = np.vectorize(remove_pattern)(combine['tweet'], "@[\w]*")
+combine.head()
+
+
+Removing punctuation , special characters,numbers
+
+combine['Tidy_Tweets'] = combine['Tidy_Tweets'].str.replace("[^a-zA-Z#]", " ")
+combine.head(10)
+
+Removing Short words
+
+combine['Tidy_Tweets'] = combine['Tidy_Tweets'].apply(lambda x: ' '.join([w for w in x.split() if len(w)>3]))
+combine.head(10)
+
+Tokenization
+tokenized_tweet = combine['Tidy_Tweets'].apply(lambda x: x.split())
+tokenized_tweet.head()
+
+Stemming
+
+from nltk import PorterStemmer
+ps = PorterStemmer()
+tokenized_tweet = tokenized_tweet.apply(lambda x: [ps.stem(i) for i in x])
+tokenized_tweet.head()
+
+for i in range(len(tokenized_tweet)):
+    tokenized_tweet[i] = ' '.join(tokenized_tweet[i])
+combine['Tidy_Tweets'] = tokenized_tweet
+combine.head()
+
+Visualizing Data
+Word Cloud
+
+from wordcloud import WordCloud,ImageColorGenerator
+from PIL import Image
+import urllib
+import requests
+
+Word Cloud for tweets with label 0
+
+
+all_words_positive = ' '.join(text for text in combine['Tidy_Tweets'][combine['label']==0])
+
+Mask = np.array(Image.open(requests.get('http://clipart-library.com/image_gallery2/Twitter-PNG-Image.png', stream=True).raw))
+image_colors = ImageColorGenerator(Mask)
+wc = WordCloud(background_color='black', height=1500, width=4000,mask=Mask).generate(all_words_positive)
+
+plt.figure(figsize=(10,20))
+plt.imshow(wc.recolor(color_func=image_colors),interpolation="hamming")
+plt.axis('off')
+plt.show()
+Word Cloud for tweets with label 0
+
+all_words_negative = ' '.join(text for text in combine['Tidy_Tweets'][combine['label']==1])
+Mask = np.array(Image.open(requests.get('http://clipart-library.com/image_gallery2/Twitter-PNG-Image.png', stream=True).raw))
+image_colors = ImageColorGenerator(Mask)
+wc = WordCloud(background_color='black', height=1500, width=4000,mask=Mask).generate(all_words_negative)
+
+plt.figure(figsize=(10,20))
+plt.imshow(wc.recolor(color_func=image_colors),interpolation="gaussian")
+plt.axis('off')
+plt.show()
+
+UnderStanding the impact of hashtags
+Extracting hashtags
+
+def Hashtags_Extract(x):
+    hashtags=[]
+    for i in x:
+        ht = re.findall(r'#(\w+)',i)
+        hashtags.append(ht)
+    return hashtags
+
+Nested list of hashtags from positive review
+ht_positive = Hashtags_Extract(combine['Tidy_Tweets'][combine['label']==0])
+ht_positive
+
+ht_positive_unnest = sum(ht_positive,[])
+ht_positive_unnest
+
+Nested list of hashtags from positive review
+
+ht_negative = Hashtags_Extract(combine['Tidy_Tweets'][combine['label']==1])
+ht_negative
+
+ht_negative_unnest = sum(ht_negative,[])
+ht_negative_unnest
+
+Bar graphs for positive tweets
+
+
+word_freq_positive = nltk.FreqDist(ht_positive_unnest)
+word_freq_positive
+
+df_positive = pd.DataFrame({'Hashtags':list(word_freq_positive.keys()),'Count':list(word_freq_positive.values())})
+df_positive.head(10)
+
+df_positive_plot = df_positive.nlargest(20,columns='Count')
+sns.barplot(data=df_positive_plot,y='Hashtags',x='Count')
+sns.despine()
+
+Bar graphs for positive tweets
+
+word_freq_negative = nltk.FreqDist(ht_negative_unnest)
+word_freq_negative
+
+df_negative = pd.DataFrame({'Hashtags':list(word_freq_negative.keys()),'Count':list(word_freq_negative.values())})
+df_negative.head(10)
+
+df_negative_plot = df_negative.nlargest(20,columns='Count')
+sns.barplot(data=df_negative_plot,y='Hashtags',x='Count')
+sns.despine()
+
+
+
