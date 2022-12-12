@@ -1,0 +1,73 @@
+LAB 1
+SUPERVISED AND UNSUPERVISED
+ https://www.kaggle.com/uciml/iris
+import numpy as np
+import pandas as pd
+
+from google.colab import files
+uploaded = files.upload()
+
+Read the files
+iris =   pd.read_csv("Iris.csv")
+
+
+Understand the data
+
+print("Head ==> \n",iris.head())
+print("Describe ==> \n",iris.describe())
+
+Visualizing using Matplot
+from matplotlib import pyplot as plt
+iris.plot(kind="scatter", x="SepalLengthCm",   y="SepalWidthCm")
+plt.show()
+
+Visualizing using Pandas Andrew’s Curve
+from pandas.plotting import andrews_curves
+andrews_curves(iris.drop("Id", axis=1), "Species")
+plt.show()
+
+Preprocessing
+from sklearn.model_selection import train_test_split
+x = iris.iloc[:, :-1].values
+y = iris.iloc[:,   -1].values
+from sklearn.model_selection import train_test_split
+x_train,x_test,y_train,y_test = train_test_split(x,y,test_size=0.2,random_state=0)
+
+Supervised Learning
+from sklearn.tree import   DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
+classifier   = DecisionTreeClassifier()
+classifier.fit(x_train,   y_train)
+y_pred   = classifier.predict(x_test)
+print(classification_report(y_test,   y_pred))
+print(confusion_matrix(y_test, y_pred))
+
+HeatMap for Confusion matrix
+import seaborn as sns
+cm  = confusion_matrix(y_test, y_pred)
+cm_df = pd.DataFrame(cm,index = ['setosa','versicolor','virginica'], columns = ['setosa','versicolor','virginica'])
+plt.figure(figsize=(5.5,4))
+sns.heatmap(cm_df,   annot=True)
+plt.ylabel('True label')
+plt.xlabel('Predicted label')
+
+Unsupervised Learning
+from sklearn.datasets import load_iris
+from sklearn.cluster import KMeans
+iris_data=load_iris()
+iris_df = pd.DataFrame(iris_data.data, columns = iris_data.feature_names)
+kmeans = KMeans(n_clusters=3,init = 'k-means++',   max_iter = 100, n_init = 10, random_state = 0)
+y_kmeans = kmeans.fit_predict(x)
+print(kmeans.cluster_centers_) #display cluster centers
+plt.scatter(x[y_kmeans   == 0, 0], x[y_kmeans == 0, 1],s = 100, c = 'red', label = 'Iris-setosa')
+plt.scatter(x[y_kmeans   == 1, 0], x[y_kmeans == 1, 1],s = 100, c = 'blue', label = 'Iris-versicolour')
+plt.scatter(x[y_kmeans   == 2, 0], x[y_kmeans == 2, 1],s = 100, c = 'green', label = 'Iris-virginica')
+plt.scatter(kmeans.cluster_centers_[:,   0], kmeans.cluster_centers_[:,1],s = 100, c = 'black', label = 'Centroids')
+plt.legend()
+plt.show()
+
+
+
+
